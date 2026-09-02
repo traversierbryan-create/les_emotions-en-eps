@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#3157b7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Les émotions en EPS">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Émotions EPS</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#eef7ff 0%,#f8f4ff 48%,#eefbf4 100%);color:#17202a}
+button{font:inherit;cursor:pointer;border:0} .app{min-height:100vh;padding:18px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+h1{font-size:28px;margin:0}.subtitle{color:#667085;margin-top:5px}
+.brand{font-size:44px;font-weight:900;letter-spacing:-1px;background:linear-gradient(90deg,#3157b7,#7b4bc2,#2f8c72);-webkit-background-clip:text;background-clip:text;color:transparent}
+.home-title{text-align:center;padding:18px 0 8px}.home-title .spark{font-size:48px}.home-title h1{font-size:40px;margin:4px 0 8px}
+.settings{margin-top:18px;padding:18px;border-radius:18px;background:#f8fafc;border:1px solid #e5e7eb}
+.class-row{display:grid;grid-template-columns:1fr 120px;gap:10px;margin:10px 0}
+input.classname{padding:12px;border:1px solid #ccd2d9;border-radius:10px;font-size:16px}
+.saveclasses{margin-top:8px;padding:12px 18px;border-radius:12px;background:#dceeff;font-weight:bold}
+.panel{background:white;border-radius:22px;padding:22px;box-shadow:0 4px 18px #00000012;margin:auto;max-width:1000px}
+select{padding:14px;border-radius:12px;border:1px solid #ccd2d9;font-size:18px;width:100%;max-width:360px}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px}
+.action{padding:24px;border-radius:18px;background:#e9eef5;font-weight:bold;font-size:21px;min-height:100px}
+.action.primary{background:#dceeff}.action.secondary{background:#e9f7e9}
+.emotions{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:25px}
+.emotion{min-height:220px;border-radius:22px;background:rgba(255,255,255,.9);border:2px solid #e3e6ea;padding:15px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px}
+.face{font-size:82px;line-height:1}.emotion span{font-size:18px;font-weight:bold}.emotion:active{transform:scale(.97)}
+.thanks{text-align:center;padding:65px 20px}.thanks .big{font-size:64px;font-weight:bold;margin:20px}
+.back{padding:12px 18px;border-radius:12px;background:#e8ebef;font-weight:bold}
+.results-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px}
+.stat{padding:18px 8px;border-radius:16px;background:#f1f3f5;text-align:center}.stat .face{font-size:44px}.pct{font-size:28px;font-weight:bold;margin:8px}
+.small{font-size:14px;color:#667085}.bar{height:12px;background:#e1e5e9;border-radius:10px;overflow:hidden}.fill{height:100%;background:#4b77be}
+table{width:100%;border-collapse:collapse;margin-top:18px}th,td{padding:10px;border-bottom:1px solid #e4e7eb;text-align:center}th{background:#f5f6f8}
+.hidden{display:none}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.longpress{position:relative;overflow:hidden}.progress{position:absolute;bottom:0;left:0;height:5px;width:0;background:#4b77be}
+@media(max-width:700px){.emotions{grid-template-columns:1fr 1fr}.emotion{min-height:150px}.face{font-size:65px}.actions{grid-template-columns:1fr}.results-grid{grid-template-columns:1fr 1fr}}
+
+.impact{margin-top:22px;padding:22px;border-radius:18px;font-size:17px}
+.impact-title{font-size:25px;font-weight:900;margin-bottom:7px}
+.good-impact{background:#e8f7ec}.bad-impact{background:#fdebec}.neutral-impact{background:#eef2f6}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.compare>div{background:#f8fafc;border-radius:18px;padding:18px}
+.year-summary{margin-top:18px;padding:18px;border-radius:16px;background:#f5f7fa;font-size:18px}
+.up{font-weight:bold}.down{font-weight:bold}
+.course-row{display:grid;grid-template-columns:130px 1fr;gap:18px;padding:15px;border-bottom:1px solid #e5e7eb}
+@media(max-width:700px){.compare{grid-template-columns:1fr}.course-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app"><div id="root"></div></div>
+<script>
+const KEY='eps_emotions_v1';
+const emotions=[
+ {key:'angry',face:'😡',name:'Énervé'},
+ {key:'sad',face:'😞',name:'Très triste'},
+ {key:'neutral',face:'😐',name:'Neutre'},
+ {key:'happy',face:'🙂',name:'Content'},
+ {key:'veryhappy',face:'😄',name:'Très content'}
+];
+const classes=['Classe 1','Classe 2','Classe 3','Classe 4','Classe 5'];
+let selectedClass=classes[0];
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return{}}}
+function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
+function blank(){return {angry:0,sad:0,neutral:0,happy:0,veryhappy:0}}
+function dateKey(){let d=new Date();return d.toISOString().slice(0,10)}
+function getTodayRecord(cls){
+ let d=load(),date=dateKey(); return d[cls]?.[date]||null;
+}
+function getSession(cls,date,moment){
+ let d=load(); return d[cls]?.[date]?.[moment]||blank()
+}
+function getStatus(cls){
+ let r=getTodayRecord(cls); return r?.status||'open';
+}
+function ensureOpenSession(cls){
+ let d=load(),date=dateKey();
+ d[cls]??={}; d[cls][date]??={entree:blank(),sortie:blank(),status:'open'};
+ d[cls][date].entree??=blank(); d[cls][date].sortie??=blank(); d[cls][date].status??='open';
+ save(d);
+}
+function addVote(cls,moment,key){
+ ensureOpenSession(cls);
+ if(getStatus(cls)==='closed'){alert('Ce cours est déjà clôturé.');showHome();return;}
+ let d=load(),date=dateKey();
+ d[cls][date][moment][key]++;
+ save(d);showThanks();
+}
+function closeToday(){
+ let cls=document.getElementById('cls')?.value||selectedClass, r=getTodayRecord(cls)||{entree:blank(),sortie:blank()};
+ let en=Object.values(r.entree||blank()).reduce((a,b)=>a+b,0), so=Object.values(r.sortie||blank()).reduce((a,b)=>a+b,0);
+ if(!en && !so){alert('Aucun vote enregistré pour cette classe aujourd’hui.');return;}
+ if(!confirm(`Clôturer le cours de ${cls} ?\n\nEntrée : ${en} réponses\nSortie : ${so} réponses\n\nLes résultats seront conservés dans l’historique et les votes seront bloqués pour cette séance.`))return;
+ let d=load(),date=dateKey(); d[cls]??={}; d[cls][date]??={entree:blank(),sortie:blank()}; d[cls][date].status='closed'; save(d); showHome();
+}
+function getClasses(){
+ let d=load(); return d._classes && d._classes.length===5 ? d._classes : classes;
+}
+function saveClasses(){
+ let names=[1,2,3,4,5].map(i=>document.getElementById('c'+i).value.trim()||('Classe '+i));
+ let d=load(); d._classes=names; save(d); showHome();
+}
+function showHome(){
+ let named=getClasses(); selectedClass=named[0];
+ root.innerHTML=`<div class="panel">
+ <div class="home-title"><div class="spark">🌈</div><div class="brand">Les émotions en EPS</div><div class="subtitle">Un petit baromètre anonyme pour prendre le pouls de la classe</div></div>
+ <div class="settings"><h2>🏫 Mes classes</h2><div class="small">Enregistre une fois le nom de chacune de tes 5 classes.</div>
+ ${named.map((c,i)=>`<div class="class-row"><input class="classname" id="c${i+1}" value="${c.replace(/"/g,'&quot;')}" placeholder="Nom de la classe ${i+1}"><div></div></div>`).join('')}
+ <button class="saveclasses" onclick="saveClasses()">💾 Enregistrer les classes</button></div>
+ <h2 style="margin-top:24px">Choisir la classe</h2>
+ <select id="cls">${named.map(c=>`<option>${c}</option>`).join('')}</select>
+ <div id="todayStatus" style="margin-top:16px;padding:12px 16px;border-radius:14px;background:#eef7ee;text-align:center;font-weight:bold">🟢 Cours du jour : en cours</div>
+ <div class="actions">
+  <button class="action primary" onclick="vote('entree')">🟢 Émotions à l'arrivée</button>
+  <button class="action secondary" onclick="vote('sortie')">🔴 Émotions à la sortie</button>
+  <button class="action longpress" id="resBtn">📊 Résultats <span class="progress"></span></button>
+  <button class="action longpress" id="histBtn">📚 Historique <span class="progress"></span></button>
+  <button class="action longpress" id="closeBtn" style="background:#fff0e8">🔐 Clôturer le cours <span class="progress"></span></button>
+ </div></div>`;
+ let status=getStatus(selectedClass);
+ document.getElementById('todayStatus').innerHTML=status==='closed'?'✅ Cours du jour : clôturé':'🟢 Cours du jour : en cours';
+ if(status==='closed'){
+   document.querySelector('.primary').disabled=true;document.querySelector('.secondary').disabled=true;
+   document.querySelector('.primary').style.opacity='.45';document.querySelector('.secondary').style.opacity='.45';
+ }
+
+ cls.onchange=()=>{selectedClass=cls.value;showHome();};
+ setupLong('resBtn',()=>showResults());
+ setupLong('histBtn',()=>showHistory());
+ setupLong('closeBtn',()=>closeToday());
+}
+function setupLong(id,fn){
+ let b=document.getElementById(id), timer, start;
+ b.addEventListener('pointerdown',()=>{start=Date.now();b.querySelector('.progress').style.width='0';timer=setInterval(()=>{let p=Math.min(100,(Date.now()-start)/30);b.querySelector('.progress').style.width=p+'%';if(p>=100){clearInterval(timer);fn()}},30)});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{clearInterval(timer);b.querySelector('.progress').style.width='0'}));
+}
+function vote(moment){
+ selectedClass=document.getElementById('cls')?.value||selectedClass;
+ if(getStatus(selectedClass)==='closed'){alert('Le cours de cette classe est déjà clôturé pour aujourd’hui.');return;}
+ root.innerHTML=`<div class="panel"><button class="back" onclick="showHome()">← Retour</button>
+ <h1 style="text-align:center;margin-top:20px">${moment==='entree'?'Comment te sens-tu aujourd’hui ?':'Comment te sens-tu à la fin du cours ?'}</h1>
+ <div class="emotions">${emotions.map(e=>`<button class="emotion" onclick="addVote('${selectedClass}','${moment}','${e.key}')"><div class="face">${e.face}</div><span>${e.name}</span></button>`).join('')}</div></div>`;
+}
+function showThanks(){root.innerHTML=`<div class="panel thanks"><div class="big">Merci !</div><div style="font-size:80px">😊</div></div>`;setTimeout(()=>vote(currentMoment()),500)}
+function currentMoment(){return window._lastMoment||'entree'}
+const oldVote=vote;
+vote=function(moment){window._lastMoment=moment;oldVote(moment)}
+function statsHTML(s){
+ let total=Object.values(s).reduce((a,b)=>a+b,0);
+ return `<div class="small">${total} réponse${total>1?'s':''}</div><div class="results-grid">${emotions.map(e=>{let p=total?Math.round(s[e.key]/total*100):0;return `<div class="stat"><div class="face">${e.face}</div><b>${e.name}</b><div class="pct">${p}%</div><div class="small">${s[e.key]} vote${s[e.key]>1?'s':''}</div><div class="bar"><div class="fill" style="width:${p}%"></div></div></div>`}).join('')}</div>`
+}
+function showResults(){
+ selectedClass=document.getElementById('cls')?.value||selectedClass;
+ let date=dateKey(),en=getSession(selectedClass,date,'entree'),so=getSession(selectedClass,date,'sortie');
+ root.innerHTML=`<div class="panel"><div class="toolbar"><button class="back" onclick="showHome()">← Accueil</button><h1>Résultats — ${selectedClass}</h1></div>
+ <h2>🟢 Aujourd'hui — arrivée</h2>${statsHTML(en)}<h2 style="margin-top:35px">🔴 Aujourd'hui — sortie</h2>${statsHTML(so)}
+ <p class="small" style="margin-top:25px">Les résultats sont stockés uniquement sous forme de compteurs anonymes : aucun vote individuel n'est conservé.</p></div>`
+}
+function avgScoresFor(sessions){
+  let total=0, sums=blank();
+  sessions.forEach(s=>{
+    let n=Object.values(s).reduce((a,b)=>a+b,0);
+    if(!n)return;
+    total+=n;
+    Object.keys(sums).forEach(k=>sums[k]+=s[k]);
+  });
+  if(!total)return null;
+  let out={}; Object.keys(sums).forEach(k=>out[k]=sums[k]/total*100);
+  return {total, scores:out};
+}
+function meanMood(scores){
+  if(!scores)return 0;
+  let vals=['angry','sad','neutral','happy','veryhappy'];
+  return vals.reduce((a,k,i)=>a+scores[k]*(i+1),0)/100;
+}
+function sessionImpact(en,so){
+  let te=Object.values(en).reduce((a,b)=>a+b,0), ts=Object.values(so).reduce((a,b)=>a+b,0);
+  if(!te || !ts)return {label:'Données insuffisantes',detail:'Il faut des réponses à l’entrée et à la sortie.',cls:'neutral-impact'};
+  let before=meanMood(Object.fromEntries(emotions.map(e=>[e.key,en[e.key]/te*100])));
+  let after=meanMood(Object.fromEntries(emotions.map(e=>[e.key,so[e.key]/ts*100])));
+  let delta=after-before;
+  if(delta>0.18)return {label:'Séance bénéfique 🌱',detail:`L’état émotionnel global progresse (${before.toFixed(2)} → ${after.toFixed(2)} / 5).`,cls:'good-impact'};
+  if(delta<-0.18)return {label:'État émotionnel en baisse',detail:`L’état émotionnel global diminue (${before.toFixed(2)} → ${after.toFixed(2)} / 5).`,cls:'bad-impact'};
+  return {label:'Pas de changement notable',detail:`L’état émotionnel global reste stable (${before.toFixed(2)} → ${after.toFixed(2)} / 5).`,cls:'neutral-impact'};
+}
+function percentCards(scores){
+  if(!scores)return '<p class="small">Pas encore de données.</p>';
+  return `<div class="results-grid">${emotions.map(e=>{let p=scores[e.key]||0;return `<div class="stat"><div class="face">${e.face}</div><b>${e.name}</b><div class="pct">${p.toFixed(0)}%</div><div class="bar"><div class="fill" style="width:${p}%"></div></div></div>`}).join('')}</div>`;
+}
+function classAnalysis(cls){
+ let d=load(), entries=[], exits=[], pairs=[];
+ Object.keys(d[cls]||{}).forEach(date=>{
+   let en=d[cls][date].entree||blank(), so=d[cls][date].sortie||blank();
+   if(Object.values(en).some(x=>x>0))entries.push(en);
+   if(Object.values(so).some(x=>x>0))exits.push(so);
+   if(Object.values(en).some(x=>x>0)&&Object.values(so).some(x=>x>0))pairs.push({date,en,so});
+ });
+ let ea=avgScoresFor(entries), sa=avgScoresFor(exits);
+ let before=ea?meanMood(ea.scores):0, after=sa?meanMood(sa.scores):0, delta=after-before;
+ let overall= !ea||!sa ? {label:'Données insuffisantes',detail:'Il faut des réponses à l’entrée et à la sortie pour établir un bilan annuel.',cls:'neutral-impact'} :
+   delta>0.18 ? {label:'Impact global positif 🌱',detail:`Sur l’ensemble de l’année, les élèves terminent en moyenne dans un état émotionnel plus positif (+${delta.toFixed(2)} point sur 5).`,cls:'good-impact'} :
+   delta<-0.18 ? {label:'Impact global négatif',detail:`Sur l’ensemble de l’année, les élèves terminent en moyenne dans un état émotionnel moins positif (${delta.toFixed(2)} point sur 5).`,cls:'bad-impact'} :
+   {label:'Impact global stable',detail:`Sur l’ensemble de l’année, la différence moyenne reste faible (${delta.toFixed(2)} point sur 5).`,cls:'neutral-impact'};
+ return {ea,sa,before,after,delta,overall,pairs};
+}
+function showHistory(){
+ let named=getClasses(), cls=document.getElementById('histClass')?.value||selectedClass||named[0];
+ selectedClass=cls;
+ let d=load(), dates=Object.keys(d[cls]||{}).sort((a,b)=>b.localeCompare(a));
+ let rows=dates.map(date=>({date,en:d[cls][date].entree||blank(),so:d[cls][date].sortie||blank()}));
+ let a=classAnalysis(cls);
+ root.innerHTML=`<div class="panel">
+ <div class="toolbar"><button class="back" onclick="showHome()">← Accueil</button><h1>📊 Analyse — ${cls}</h1></div>
+ <div class="settings"><h2>🏫 Classe à analyser</h2><select id="histClass">${named.map(c=>`<option ${c===cls?'selected':''}>${c}</option>`).join('')}</select></div>
+ <div class="impact ${a.overall.cls}"><div class="impact-title">${a.overall.label}</div><div>${a.overall.detail}</div></div>
+ <h2>📈 Bilan général de l'année</h2>
+ <div class="compare"><div><h3>🟢 Toutes les entrées</h3>${a.ea?`<b>${a.ea.total} réponses</b>${percentCards(a.ea.scores)}`:'<p class="small">Aucune donnée.</p>'}</div>
+ <div><h3>🔴 Toutes les sorties</h3>${a.sa?`<b>${a.sa.total} réponses</b>${percentCards(a.sa.scores)}`:'<p class="small">Aucune donnée.</p>'}</div></div>
+ <div class="year-summary"><b>Indice émotionnel moyen :</b> entrée ${a.ea?a.before.toFixed(2):'—'} / 5 → sortie ${a.sa?a.after.toFixed(2):'—'} / 5
+ ${a.ea&&a.sa?`<span class="${a.delta>=0?'up':'down'}">${a.delta>=0?'+':''}${a.delta.toFixed(2)} point</span>`:''}</div>
+ <h2 style="margin-top:35px">🗓️ Bilan de chaque cours</h2>
+ ${rows.length?rows.map(r=>{let imp=sessionImpact(r.en,r.so);let closed=(d[cls]?.[r.date]?.status==='closed');return `<div class="course-row"><div><b>${r.date}</b><br><span class="small">${closed?'✅ Clôturé':'🟢 En cours'}</span></div><div>${imp.label}<br><span class="small">${imp.detail}</span></div></div>`}).join(''):'<p class="small">Aucun cours enregistré.</p>'}
+ <h2 style="margin-top:35px">📋 Historique détaillé</h2>
+ <table><thead><tr><th>Date</th><th>Moment</th><th>😡</th><th>😞</th><th>😐</th><th>🙂</th><th>😄</th></tr></thead><tbody>
+ ${rows.flatMap(r=>[['🟢 Entrée',r.en],['🔴 Sortie',r.so]].map(x=>{let s=x[1],t=Object.values(s).reduce((aa,b)=>aa+b,0);let p=emotions.map(e=>(t?Math.round(s[e.key]/t*100):0)+'%').join('</td><td>');return `<tr><td>${r.date}</td><td>${x[0]}</td><td>${p}</td></tr>`})).join('')}
+ </tbody></table>
+ <p class="small" style="margin-top:22px">⚠️ Le bilan compare uniquement les distributions anonymes entrée/sortie. Il mesure une évolution collective, pas un effet causal certain de la séance.</p>
+ </div>`;
+ document.getElementById('histClass').onchange=e=>showHistoryFor(e.target.value);
+}
+function showHistoryFor(c){ selectedClass=c; showHistory(); }
+
+showHome();
+</script>
+<script>if ("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+</body></html>

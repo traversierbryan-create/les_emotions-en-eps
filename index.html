@@ -3,12 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#3157b7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Les émotions en EPS">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
 <title>Émotions EPS</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#eef7ff 0%,#f8f4ff 48%,#eefbf4 100%);color:#17202a}
@@ -48,6 +42,7 @@ table{width:100%;border-collapse:collapse;margin-top:18px}th,td{padding:10px;bor
 .up{font-weight:bold}.down{font-weight:bold}
 .course-row{display:grid;grid-template-columns:130px 1fr;gap:18px;padding:15px;border-bottom:1px solid #e5e7eb}
 @media(max-width:700px){.compare{grid-template-columns:1fr}.course-row{grid-template-columns:1fr}}
+.delete-day{margin-top:8px;padding:8px 12px;border-radius:10px;background:#fdebec;font-size:14px;font-weight:bold}
 </style>
 </head>
 <body>
@@ -90,6 +85,23 @@ function addVote(cls,moment,key){
  d[cls][date][moment][key]++;
  save(d);showThanks();
 }
+
+function resetToday(){
+ let cls=document.getElementById('cls')?.value||selectedClass, r=getTodayRecord(cls);
+ if(!r){alert('Aucune donnée enregistrée pour cette classe aujourd’hui.');return;}
+ let en=Object.values(r.entree||blank()).reduce((a,b)=>a+b,0), so=Object.values(r.sortie||blank()).reduce((a,b)=>a+b,0);
+ if(!confirm(`Réinitialiser complètement la journée pour ${cls} ?\n\nEntrée : ${en} réponses\nSortie : ${so} réponses\n\n⚠️ Cette action supprimera définitivement les résultats du jour.`))return;
+ let d=load(),date=dateKey();
+ if(d[cls]){delete d[cls][date];save(d);}
+ showHome();
+}
+function deleteHistoryDay(cls,date){
+ let d=load(),r=d[cls]?.[date];
+ if(!r)return;
+ let en=Object.values(r.entree||blank()).reduce((a,b)=>a+b,0), so=Object.values(r.sortie||blank()).reduce((a,b)=>a+b,0);
+ if(!confirm(`Supprimer définitivement les résultats du ${date} pour ${cls} ?\n\nEntrée : ${en} réponses\nSortie : ${so} réponses\n\n⚠️ Cette action est irréversible.`))return;
+ delete d[cls][date];save(d);showHistory();
+}
 function closeToday(){
  let cls=document.getElementById('cls')?.value||selectedClass, r=getTodayRecord(cls)||{entree:blank(),sortie:blank()};
  let en=Object.values(r.entree||blank()).reduce((a,b)=>a+b,0), so=Object.values(r.sortie||blank()).reduce((a,b)=>a+b,0);
@@ -105,14 +117,14 @@ function saveClasses(){
  let d=load(); d._classes=names; save(d); showHome();
 }
 function showHome(){
- let named=getClasses(); selectedClass=named[0];
+ let named=getClasses(); if(!named.includes(selectedClass)) selectedClass=named[0];
  root.innerHTML=`<div class="panel">
  <div class="home-title"><div class="spark">🌈</div><div class="brand">Les émotions en EPS</div><div class="subtitle">Un petit baromètre anonyme pour prendre le pouls de la classe</div></div>
  <div class="settings"><h2>🏫 Mes classes</h2><div class="small">Enregistre une fois le nom de chacune de tes 5 classes.</div>
  ${named.map((c,i)=>`<div class="class-row"><input class="classname" id="c${i+1}" value="${c.replace(/"/g,'&quot;')}" placeholder="Nom de la classe ${i+1}"><div></div></div>`).join('')}
  <button class="saveclasses" onclick="saveClasses()">💾 Enregistrer les classes</button></div>
  <h2 style="margin-top:24px">Choisir la classe</h2>
- <select id="cls">${named.map(c=>`<option>${c}</option>`).join('')}</select>
+ <select id="cls">${named.map(c=>`<option ${c===selectedClass?'selected':''}>${c}</option>`).join('')}</select>
  <div id="todayStatus" style="margin-top:16px;padding:12px 16px;border-radius:14px;background:#eef7ee;text-align:center;font-weight:bold">🟢 Cours du jour : en cours</div>
  <div class="actions">
   <button class="action primary" onclick="vote('entree')">🟢 Émotions à l'arrivée</button>
@@ -120,6 +132,7 @@ function showHome(){
   <button class="action longpress" id="resBtn">📊 Résultats <span class="progress"></span></button>
   <button class="action longpress" id="histBtn">📚 Historique <span class="progress"></span></button>
   <button class="action longpress" id="closeBtn" style="background:#fff0e8">🔐 Clôturer le cours <span class="progress"></span></button>
+  <button class="action longpress" id="resetBtn" style="background:#fff0e8">♻️ Réinitialiser la journée <span class="progress"></span></button>
  </div></div>`;
  let status=getStatus(selectedClass);
  document.getElementById('todayStatus').innerHTML=status==='closed'?'✅ Cours du jour : clôturé':'🟢 Cours du jour : en cours';
@@ -132,6 +145,7 @@ function showHome(){
  setupLong('resBtn',()=>showResults());
  setupLong('histBtn',()=>showHistory());
  setupLong('closeBtn',()=>closeToday());
+ setupLong('resetBtn',()=>resetToday());
 }
 function setupLong(id,fn){
  let b=document.getElementById(id), timer, start;
@@ -223,7 +237,7 @@ function showHistory(){
  <div class="year-summary"><b>Indice émotionnel moyen :</b> entrée ${a.ea?a.before.toFixed(2):'—'} / 5 → sortie ${a.sa?a.after.toFixed(2):'—'} / 5
  ${a.ea&&a.sa?`<span class="${a.delta>=0?'up':'down'}">${a.delta>=0?'+':''}${a.delta.toFixed(2)} point</span>`:''}</div>
  <h2 style="margin-top:35px">🗓️ Bilan de chaque cours</h2>
- ${rows.length?rows.map(r=>{let imp=sessionImpact(r.en,r.so);let closed=(d[cls]?.[r.date]?.status==='closed');return `<div class="course-row"><div><b>${r.date}</b><br><span class="small">${closed?'✅ Clôturé':'🟢 En cours'}</span></div><div>${imp.label}<br><span class="small">${imp.detail}</span></div></div>`}).join(''):'<p class="small">Aucun cours enregistré.</p>'}
+ ${rows.length?rows.map(r=>{let imp=sessionImpact(r.en,r.so);let closed=(d[cls]?.[r.date]?.status==='closed');return `<div class="course-row"><div><b>${r.date}</b><br><span class="small">${closed?'✅ Clôturé':'🟢 En cours'}</span></div><div>${imp.label}<br><span class="small">${imp.detail}</span><br><button class="delete-day" onclick="deleteHistoryDay(${JSON.stringify(cls)},'${r.date}')">🗑️ Supprimer cette journée</button></div></div>`}).join(''):'<p class="small">Aucun cours enregistré.</p>'}
  <h2 style="margin-top:35px">📋 Historique détaillé</h2>
  <table><thead><tr><th>Date</th><th>Moment</th><th>😡</th><th>😞</th><th>😐</th><th>🙂</th><th>😄</th></tr></thead><tbody>
  ${rows.flatMap(r=>[['🟢 Entrée',r.en],['🔴 Sortie',r.so]].map(x=>{let s=x[1],t=Object.values(s).reduce((aa,b)=>aa+b,0);let p=emotions.map(e=>(t?Math.round(s[e.key]/t*100):0)+'%').join('</td><td>');return `<tr><td>${r.date}</td><td>${x[0]}</td><td>${p}</td></tr>`})).join('')}
@@ -236,5 +250,4 @@ function showHistoryFor(c){ selectedClass=c; showHistory(); }
 
 showHome();
 </script>
-<script>if ("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 </body></html>

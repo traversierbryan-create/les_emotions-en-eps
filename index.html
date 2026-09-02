@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Émotions EPS</title>
+<title>Émotions EPS — V10</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#eef7ff 0%,#f8f4ff 48%,#eefbf4 100%);color:#17202a}
 button{font:inherit;cursor:pointer;border:0} .app{min-height:100vh;padding:18px}
@@ -95,7 +95,7 @@ function resetToday(){
  if(d[cls]){delete d[cls][date];save(d);}
  showHome();
 }
-function deleteHistoryDayFromButton(btn){
+window.deleteHistoryDayFromButton=function(btn){
  let cls=decodeURIComponent(btn.dataset.deleteClass||'');
  let date=btn.dataset.deleteDate||'';
  deleteHistoryDay(cls,date);
@@ -242,7 +242,7 @@ function showHistory(){
  <div class="year-summary"><b>Indice émotionnel moyen :</b> entrée ${a.ea?a.before.toFixed(2):'—'} / 5 → sortie ${a.sa?a.after.toFixed(2):'—'} / 5
  ${a.ea&&a.sa?`<span class="${a.delta>=0?'up':'down'}">${a.delta>=0?'+':''}${a.delta.toFixed(2)} point</span>`:''}</div>
  <h2 style="margin-top:35px">🗓️ Bilan de chaque cours</h2>
- ${rows.length?rows.map(r=>{let imp=sessionImpact(r.en,r.so);let closed=(d[cls]?.[r.date]?.status==='closed');return `<div class="course-row"><div><b>${r.date}</b><br><span class="small">${closed?'✅ Clôturé':'🟢 En cours'}</span></div><div>${imp.label}<br><span class="small">${imp.detail}</span><br><button class="delete-day" type="button" data-delete-class="${encodeURIComponent(cls)}" data-delete-date="${r.date}" title="Supprimer cette journée" aria-label="Supprimer cette journée" onclick="deleteHistoryDayFromButton(this)" ontouchend="deleteHistoryDayFromButton(this)">🗑️</button></div></div>`}).join(''):'<p class="small">Aucun cours enregistré.</p>'}
+ ${rows.length?rows.map(r=>{let imp=sessionImpact(r.en,r.so);let closed=(d[cls]?.[r.date]?.status==='closed');return `<div class="course-row"><div><b>${r.date}</b><br><span class="small">${closed?'✅ Clôturé':'🟢 En cours'}</span></div><div>${imp.label}<br><span class="small">${imp.detail}</span><br><button class="delete-day" type="button" data-delete-class="${encodeURIComponent(cls)}" data-delete-date="${r.date}" title="Supprimer cette journée" aria-label="Supprimer cette journée">🗑️</button></div></div>`}).join(''):'<p class="small">Aucun cours enregistré.</p>'}
  <h2 style="margin-top:35px">📋 Historique détaillé</h2>
  <table><thead><tr><th>Date</th><th>Moment</th><th>😡</th><th>😞</th><th>😐</th><th>🙂</th><th>😄</th></tr></thead><tbody>
  ${rows.flatMap(r=>[['🟢 Entrée',r.en],['🔴 Sortie',r.so]].map(x=>{let s=x[1],t=Object.values(s).reduce((aa,b)=>aa+b,0);let p=emotions.map(e=>(t?Math.round(s[e.key]/t*100):0)+'%').join('</td><td>');return `<tr><td>${r.date}</td><td>${x[0]}</td><td>${p}</td></tr>`})).join('')}
@@ -250,7 +250,17 @@ function showHistory(){
  <p class="small" style="margin-top:22px">⚠️ Le bilan compare uniquement les distributions anonymes entrée/sortie. Il mesure une évolution collective, pas un effet causal certain de la séance.</p>
  </div>`;
  document.getElementById('histClass').onchange=e=>showHistoryFor(e.target.value);
- 
+ document.querySelectorAll('.delete-day').forEach(btn=>{
+   btn.addEventListener('pointerup',function(e){
+     e.preventDefault();
+     e.stopPropagation();
+     deleteHistoryDayFromButton(this);
+   },{passive:false});
+   btn.addEventListener('click',function(e){
+     e.preventDefault();
+     e.stopPropagation();
+   });
+ });
 }
 function showHistoryFor(c){ selectedClass=c; showHistory(); }
 
